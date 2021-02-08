@@ -8,10 +8,7 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -36,6 +33,7 @@ import io.smallrye.graphql.bootstrap.Config;
 import io.smallrye.graphql.execution.SchemaPrinter;
 import io.smallrye.graphql.schema.SchemaBuilder;
 import io.smallrye.graphql.schema.model.Schema;
+import io.smallrye.graphql.schema.processor.SchemaProcessor;
 
 @Mojo(name = "generate-schema", defaultPhase = LifecyclePhase.PROCESS_CLASSES, requiresDependencyCollection = ResolutionScope.COMPILE_PLUS_RUNTIME, requiresDependencyResolution = ResolutionScope.COMPILE_PLUS_RUNTIME)
 public class GenerateSchemaMojo extends AbstractMojo {
@@ -184,11 +182,22 @@ public class GenerateSchemaMojo extends AbstractMojo {
         };
 
         Schema internalSchema = SchemaBuilder.build(index);
+        processSchema(internalSchema, index);
         GraphQLSchema graphQLSchema = Bootstrap.bootstrap(internalSchema, config);
         if (graphQLSchema != null) {
             return new SchemaPrinter(config).print(graphQLSchema);
         }
         return null;
+    }
+
+    private void processSchema(Schema schema, IndexView index) {
+        SchemaProcessor schemaProcessor = SchemaProcessor.getInstance();
+        if (schemaProcessor != null) {
+            getLog().info("Processing schema with : " + schemaProcessor.getClass().getName());
+            schemaProcessor.processSchema(schema, index, true);
+        } else {
+            getLog().info("There is no " + SchemaProcessor.class.getSimpleName() + " installed on classpath.");
+        }
     }
 
     private void write(String schema) throws MojoExecutionException {
